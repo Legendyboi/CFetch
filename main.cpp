@@ -44,5 +44,8 @@ int main(){
     std::string uptime = executeCommand("uptime -p");
     std::string shell = executeCommand("echo $SHELL");
     std::string DE_WM = executeCommand("echo $XDG_CURRENT");
+    std::string terminal = executeCommand("echo $TERM");
+
+
     return 0;
 }
