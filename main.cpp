@@ -17,7 +17,7 @@ std::string executeCommand(const std::string& command) {
     return result;
 }
 
-std::string get_ppid(const std::string& os, const std::string& pid) {
+std::string get_ppid(const std::string& pid) {
     std::string ppid;
     std::string proc_file = "/proc/" + (pid.empty() ? "$PPID" : pid) + "/status";
     std::ifstream file(proc_file);
@@ -25,7 +25,7 @@ std::string get_ppid(const std::string& os, const std::string& pid) {
         std::string line;
         while (std::getline(file, line)) {
             if (line.find("PPid:") != std::string::npos) {
-                ppid = line.substr(line.find(":") + 1);
+                ppid = line.substr(line.find(':') + 1);
                 ppid = ppid.substr(ppid.find_first_not_of(" \t"));
                 break;
             }
@@ -35,7 +35,7 @@ std::string get_ppid(const std::string& os, const std::string& pid) {
     return ppid;
 }
 
-std::string get_process_name(const std::string& os, const std::string& pid) {
+std::string get_process_name(const std::string& pid) {
     std::string name;
     std::string comm_file = "/proc/" + (pid.empty() ? "$PPID" : pid) + "/comm";
     std::ifstream file(comm_file);
@@ -82,7 +82,7 @@ std::string getHostname() {
         perror("gethostname");
         return "";
     }
-    return std::string(hostname);
+    return hostname;
 }
 
 std::string getKernelVersion() {
@@ -94,31 +94,43 @@ std::string getKernelVersion() {
 std::string getUptime() {
     std::string uptime = executeCommand("uptime -p");
     uptime = uptime.substr(0, uptime.find_last_not_of(" \n\r\t") + 1);
+
+    std::string upPrefix = "up ";
+    if (uptime.find(upPrefix) == 0) {
+        uptime = uptime.substr(upPrefix.length());
+    }
+
     return uptime;
 }
 
-std::string get_de_or_wm() {
-    std::string de_or_wm;
+std::string getDE() {
+    std::string de;
 
     std::string xdg_session = executeCommand("echo $XDG_SESSION_DESKTOP");
     xdg_session = xdg_session.substr(0, xdg_session.find_last_not_of(" \n\r\t") + 1);
 
-    if (!xdg_session.empty())
-        de_or_wm = xdg_session;
-    else {
-        std::string x_window_manager = executeCommand("echo $XDG_CURRENT_DESKTOP");
-        x_window_manager = x_window_manager.substr(0, x_window_manager.find_last_not_of(" \n\r\t") + 1);
-
-        if (!x_window_manager.empty())
-            de_or_wm = x_window_manager;
-        else {
-            std::string window_manager = executeCommand("echo $WINDOW_MANAGER");
-            window_manager = window_manager.substr(0, window_manager.find_last_not_of(" \n\r\t") + 1);
-            de_or_wm = window_manager;
-        }
+    if (!xdg_session.empty()) {
+        de = xdg_session;
     }
 
-    return de_or_wm;
+    return de;
+}
+
+std::string getWM() {
+    std::string wm;
+
+    std::string x_window_manager = executeCommand("echo $XDG_CURRENT_DESKTOP");
+    x_window_manager = x_window_manager.substr(0, x_window_manager.find_last_not_of(" \n\r\t") + 1);
+
+    if (!x_window_manager.empty()) {
+        wm = x_window_manager;
+    } else {
+        std::string window_manager = executeCommand("echo $WINDOW_MANAGER");
+        window_manager = window_manager.substr(0, window_manager.find_last_not_of(" \n\r\t") + 1);
+        wm = window_manager;
+    }
+
+    return wm;
 }
 
 std::string getCpuInfo() {
@@ -128,7 +140,7 @@ std::string getCpuInfo() {
 }
 
 std::string getGpuInfo() {
-    std::string gpu_info = executeCommand("lspci | grep -i 'vga\\|3d\\|display' | head -n 1");
+    std::string gpu_info = executeCommand("lspci | grep -i 'vga\\|3d\\|display' | head -n 1 | awk -F ': ' '{print $2}'");
     gpu_info = gpu_info.substr(0, gpu_info.find_last_not_of(" \n\r\t") + 1);
     return gpu_info;
 }
@@ -145,40 +157,42 @@ std::string getDiskInfo() {
     return disk_info;
 }
 
-std::string getNetworkInfo() {
-    std::string network_info = executeCommand("ip addr | awk '/state UP/ {getline; getline; print $2}'");
-    network_info = network_info.substr(0, network_info.find_last_not_of(" \n\r\t") + 1);
-    return network_info;
-}
-
 int main() {
     std::string os = executeCommand("lsb_release -ds");
+    std::string arch = executeCommand("uname -m");
     std::string shell = getShell();
     std::string username = getUsername();
     std::string hostname = getHostname();
     std::string kernel_version = getKernelVersion();
     std::string uptime = getUptime();
-    std::string de_or_wm = get_de_or_wm();
+    std::string de = getDE();
+    std::string wm = getWM();
     std::string terminal = getTerminal();
     std::string cpu_info = getCpuInfo();
     std::string gpu_info = getGpuInfo();
     std::string memory_info = getMemoryInfo();
     std::string disk_info = getDiskInfo();
-    std::string network_info = getNetworkInfo();
+
+    os = os.substr(0, os.find_last_not_of(" \n\r\t") + 1);
+    if (!os.empty() && os.front() == '"' && os.back() == '"') {
+        os = os.substr(1, os.length() - 2);
+    }
+
+    arch = arch.substr(0, arch.find_last_not_of(" \n\r\t") + 1);
 
     std::cout << username << "@" << hostname << std::endl;
     std::cout << "-------------------------" << std::endl;
-    std::cout << "Operating System: " << os;
+    std::cout << "Operating System: " << os << " " << arch << std::endl;
     std::cout << "Shell: " << shell << std::endl;
     std::cout << "Kernel: " << kernel_version << std::endl;
     std::cout << "Uptime: " << uptime << std::endl;
-    std::cout << "Desktop Environment or Window Manager: " << de_or_wm << std::endl;
+    if(!de.empty()) { std::cout << "DE: " << de << std::endl; }
+    std::cout << "WM: " << wm << std::endl;
     std::cout << "Terminal Emulator: " << terminal << std::endl;
     std::cout << "CPU: " << cpu_info << std::endl;
     std::cout << "GPU: " << gpu_info << std::endl;
     std::cout << "Memory: " << memory_info << std::endl;
     std::cout << "Disk: " << disk_info << std::endl;
-    std::cout << "Network: " << network_info << std::endl;
 
     return 0;
 }
