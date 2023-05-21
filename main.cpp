@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <unistd.h>
 
@@ -15,35 +14,6 @@ std::string executeCommand(const std::string& command) {
         pclose(pipe);
     }
     return result;
-}
-
-std::string get_ppid(const std::string& pid) {
-    std::string ppid;
-    std::string proc_file = "/proc/" + (pid.empty() ? "$PPID" : pid) + "/status";
-    std::ifstream file(proc_file);
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            if (line.find("PPid:") != std::string::npos) {
-                ppid = line.substr(line.find(':') + 1);
-                ppid = ppid.substr(ppid.find_first_not_of(" \t"));
-                break;
-            }
-        }
-        file.close();
-    }
-    return ppid;
-}
-
-std::string get_process_name(const std::string& pid) {
-    std::string name;
-    std::string comm_file = "/proc/" + (pid.empty() ? "$PPID" : pid) + "/comm";
-    std::ifstream file(comm_file);
-    if (file.is_open()) {
-        std::getline(file, name);
-        file.close();
-    }
-    return name;
 }
 
 std::string getTerminal() {
